@@ -1,0 +1,21 @@
+# Section 4: Full-parameter fine-tuning on gemma-2b-it, Implicit (DI) data.
+# data_path points to Backdoor_dataset.json, used AS DI here -- its
+# content (every output prefixed "Sure, the answer is:", no trigger
+# phrase) matches the paper's Implicit definition, not Backdoor. True
+# Backdoor (DB) data does not exist in this repo -- see
+# silu101/safety-layers-repo's docs/KNOWN_DISCREPANCIES.md #5.
+
+script: Code/Fine_tune/Full_finetuning.py
+run_name: gemma_full_implicit
+
+args:
+  base_model: google/gemma-2b-it
+  data_path: ../../Dataset/Finetune/Backdoor_dataset.json   # used as DI, see note above
+  output_dir: ../../output_models/gemma_full_implicit
+  batch_size: 128
+  micro_batch_size: 4
+  num_epochs: 3
+  learning_rate: 1e-4
+  cutoff_len: 256
+  val_set_size: 100
+  prompt_template_name: alpaca

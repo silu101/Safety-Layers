@@ -1,0 +1,21 @@
+# Section 4: SPPFT on gemma-2b-it, Implicit (DI) data. See
+# gemma_finetune_full_implicit.yaml (DI-via-Backdoor_dataset.json note)
+# and gemma_finetune_sppft_normal.yaml (begin_num/end_num=5,12 note).
+
+script: Code/Fine_tune/SPPFT.py
+run_name: gemma_sppft_implicit
+
+args:
+  base_model: google/gemma-2b-it
+  data_path: ../../Dataset/Finetune/Backdoor_dataset.json   # used as DI
+  output_dir: ../../output_models/gemma_sppft_implicit
+  if_freeze: true
+  begin_num: 5
+  end_num: 12
+  batch_size: 128
+  micro_batch_size: 4
+  num_epochs: 3
+  learning_rate: 1e-4
+  cutoff_len: 256
+  val_set_size: 100
+  prompt_template_name: alpaca
