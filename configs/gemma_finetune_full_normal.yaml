@@ -8,21 +8,22 @@
 script: Code/Fine_tune/Full_finetuning.py
 run_name: gemma_full_normal
 
+# CUDA OOM inside AdamW.step() (fixed, batch-size-independent optimizer-
+# state memory) persisted even at micro_batch_size=1 and with
+# PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True. use_deepspeed: true
+# (see run_config.py) offloads Adam's momentum/variance buffers to system
+# RAM via DeepSpeed ZeRO-2, launched through `accelerate` -- Full_finetuning.py
+# itself is NOT modified; HF's Trainer auto-detects DeepSpeed from the
+# accelerate-launch environment. Reverted micro_batch_size back to the
+# script's own default (4) since it's no longer needed for memory.
+use_deepspeed: true
+
 args:
   base_model: google/gemma-2b-it
   data_path: ../../Dataset/Finetune/Normal_dataset.json
   output_dir: ../../output_models/gemma_full_normal
   batch_size: 128
-  # micro_batch_size reduced 4 -> 1 (gradient_accumulation_steps 32 -> 128)
-  # to fit the L40S's 48GB VRAM -- Full FT OOM'd inside AdamW.step() at the
-  # original micro_batch_size=4, short by only 128MB, even with
-  # PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True (ruled out
-  # fragmentation as the cause). Gradient accumulation with a smaller
-  # micro-batch produces the SAME effective batch_size=128 and the same
-  # result -- this is not a hyperparameter deviation, it's the memory/
-  # speed tradeoff the original script's own batch_size/micro_batch_size
-  # split was designed for.
-  micro_batch_size: 1
+  micro_batch_size: 4
   num_epochs: 3
   learning_rate: 1e-4
   cutoff_len: 256

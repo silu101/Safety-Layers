@@ -82,7 +82,33 @@ def main(argv: list[str] | None = None) -> tuple[Path, int]:
     script_args = cfg.get("args", {})
 
     cli_args = [f"--{k}={v}" for k, v in script_args.items()]
-    cmd = [sys.executable, script_path.name] + cli_args
+
+    if cfg.get("use_deepspeed"):
+        # CPU-offloaded optimizer state via DeepSpeed ZeRO-2, launched
+        # through `accelerate` -- HF's Trainer auto-detects DeepSpeed from
+        # the accelerate-launch environment and wires it up transparently,
+        # so this needs ZERO changes to Full_finetuning.py/SPPFT.py
+        # themselves (no `deepspeed=` argument in their hardcoded
+        # TrainingArguments call). Moves Adam's momentum/variance buffers
+        # to system RAM instead of GPU VRAM -- fixes a CUDA OOM that
+        # persisted even at micro_batch_size=1 (the OOM was in the fixed,
+        # batch-size-independent optimizer-state allocation, not
+        # activation memory). Using CLI flags, not a static accelerate
+        # config YAML, since a relative deepspeed_config_file path in a
+        # committed YAML would resolve differently locally vs. inside a
+        # container with a different REPO_ROOT.
+        ds_config = REPO_ROOT / "ds_zero2_offload.json"
+        cmd = [
+            "accelerate", "launch",
+            "--use_deepspeed",
+            "--deepspeed_config_file", str(ds_config),
+            "--zero_stage", "2",
+            "--offload_optimizer_device", "cpu",
+            "--num_processes", "1",
+            script_path.name,
+        ] + cli_args
+    else:
+        cmd = [sys.executable, script_path.name] + cli_args
 
     run_name = cfg.get("run_name") or f"{script_path.stem}_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     out_dir = REPO_ROOT / "results" / run_name

@@ -24,9 +24,11 @@ SM_MODEL_DIR = Path(os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
 
 CONFIGS = [
     "gemma_finetune_full_normal.yaml",
-    "gemma_finetune_full_implicit.yaml",
-    # sppft_normal and sppft_implicit already succeeded previously --
-    # not re-running them here.
+    # Testing use_deepspeed (CPU-offloaded optimizer via DeepSpeed ZeRO-2)
+    # on the cheapest config first -- this needs a custom CPU-Adam op
+    # JIT-compiled at launch time, a new failure mode we haven't tested.
+    # "gemma_finetune_full_implicit.yaml",
+    # sppft_normal and sppft_implicit already succeeded previously.
 ]
 
 
@@ -61,7 +63,8 @@ def main():
     # which broke torch detection entirely.
     sh([sys.executable, "-m", "pip", "install",
         "transformers==4.44.2", "accelerate==0.31.0", "datasets==2.20.0",
-        "sentencepiece>=0.1.99", "fire>=0.5.0", "pyyaml>=6.0"])
+        "sentencepiece>=0.1.99", "fire>=0.5.0", "pyyaml>=6.0",
+        "deepspeed==0.14.4"])  # for use_deepspeed: true configs (CPU-offloaded optimizer state)
     hf_login()
 
     for config in CONFIGS:
