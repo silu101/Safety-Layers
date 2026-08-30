@@ -36,7 +36,16 @@ estimator = PyTorch(
     max_run=6 * 60 * 60,  # 6 hours ceiling -- 4 small fine-tuning runs
                           # (900-3900 train examples each, 3 epochs), a
                           # generous but bounded cost/safety guard.
-    environment={"HF_TOKEN": hf_token},
+    environment={
+        "HF_TOKEN": hf_token,
+        # Full FT hit a CUDA OOM inside AdamW's optimizer.step() (fixed
+        # per-parameter optimizer-state memory, independent of batch
+        # size), short by only 128MB. This is a pure memory-allocator
+        # setting -- reduces fragmentation, changes nothing about
+        # training semantics/hyperparameters/results. Try this before
+        # touching any actual config value.
+        "PYTORCH_CUDA_ALLOC_CONF": "expandable_segments:True",
+    },
 )
 
 if __name__ == "__main__":
