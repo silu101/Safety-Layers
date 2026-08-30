@@ -25,8 +25,11 @@ SM_MODEL_DIR = Path(os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
 CONFIGS = [
     "gemma_finetune_full_normal.yaml",
     "gemma_finetune_full_implicit.yaml",
-    "gemma_finetune_sppft_normal.yaml",
-    "gemma_finetune_sppft_implicit.yaml",
+    # sppft_normal and sppft_implicit already succeeded in the previous
+    # job run (2026-08-30) -- not re-running them here to save time/cost.
+    # Re-add if a full re-run is ever needed:
+    # "gemma_finetune_sppft_normal.yaml",
+    # "gemma_finetune_sppft_implicit.yaml",
 ]
 
 
