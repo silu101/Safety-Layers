@@ -24,12 +24,9 @@ SM_MODEL_DIR = Path(os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
 
 CONFIGS = [
     "gemma_finetune_full_normal.yaml",
-    # Testing PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True on the
-    # cheapest failing config first, before re-running full_implicit too.
-    # sppft_normal and sppft_implicit already succeeded previously.
-    # "gemma_finetune_full_implicit.yaml",
-    # "gemma_finetune_sppft_normal.yaml",
-    # "gemma_finetune_sppft_implicit.yaml",
+    "gemma_finetune_full_implicit.yaml",
+    # sppft_normal and sppft_implicit already succeeded previously --
+    # not re-running them here.
 ]
 
 
