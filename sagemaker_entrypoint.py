@@ -23,12 +23,11 @@ REPO_DIR = Path("/opt/ml/code/Safety-Layers")
 SM_MODEL_DIR = Path(os.environ.get("SM_MODEL_DIR", "/opt/ml/model"))
 
 CONFIGS = [
-    "gemma_finetune_full_normal.yaml",
-    # Testing use_deepspeed (CPU-offloaded optimizer via DeepSpeed ZeRO-2)
-    # on the cheapest config first -- this needs a custom CPU-Adam op
-    # JIT-compiled at launch time, a new failure mode we haven't tested.
-    # "gemma_finetune_full_implicit.yaml",
-    # sppft_normal and sppft_implicit already succeeded previously.
+    # full_normal already succeeded on the previous job run -- not
+    # re-running it here.
+    "gemma_finetune_full_implicit.yaml",
+    # sppft_normal and sppft_implicit already succeeded previously (single
+    # GPU, ml.g6e.xlarge) -- not re-running them on this bigger instance.
 ]
 
 
