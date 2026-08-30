@@ -63,7 +63,7 @@ def _apply_set_overrides(cfg: dict, sets: list[str]) -> dict:
     return cfg
 
 
-def main(argv: list[str] | None = None) -> Path:
+def main(argv: list[str] | None = None) -> tuple[Path, int]:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--config", required=True, help="Path to a YAML config (see configs/).")
     parser.add_argument(
@@ -99,21 +99,41 @@ def main(argv: list[str] | None = None) -> Path:
     with open(out_dir / "run_metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"[run_config] + cd {cwd} && {' '.join(cmd)}")
+    print(f"[run_config] + cd {cwd} && {' '.join(cmd)}", flush=True)
     log_path = out_dir / "stdout_stderr.log"
+    # Tee to both the log file AND this process's own stdout -- when run
+    # inside a SageMaker training job, stdout is what CloudWatch Logs
+    # captures, so the underlying script's real output (including error
+    # tracebacks) is visible there immediately, without needing to
+    # download the (potentially huge) S3 model artifact just to read a
+    # small log file.
     with open(log_path, "w") as log_f:
-        result = subprocess.run(cmd, cwd=cwd, stdout=log_f, stderr=subprocess.STDOUT)
+        proc = subprocess.Popen(
+            cmd, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+            bufsize=1, universal_newlines=True,
+        )
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+            log_f.write(line)
+        proc.wait()
+    returncode = proc.returncode
 
     metadata["finished_at_utc"] = datetime.now(timezone.utc).isoformat()
-    metadata["returncode"] = result.returncode
+    metadata["returncode"] = returncode
     with open(out_dir / "run_metadata.json", "w") as f:
         json.dump(metadata, f, indent=2)
 
-    print(f"[run_config] Done (returncode={result.returncode}). Log: {log_path}")
-    if result.returncode != 0:
+    print(f"[run_config] Done (returncode={returncode}). Log: {log_path}")
+    if returncode != 0:
         print(f"[run_config] NON-ZERO EXIT -- check {log_path} for the error.", file=sys.stderr)
-    return out_dir
+    return out_dir, returncode
 
 
 if __name__ == "__main__":
-    main()
+    _, _returncode = main()
+    # Propagate the underlying script's exit code as run_config.py's own --
+    # previously this always exited 0 even when the wrapped script failed,
+    # which made the SageMaker entrypoint's per-config error handling
+    # silently useless (it checked THIS process's returncode, not the
+    # training script's).
+    sys.exit(_returncode)
