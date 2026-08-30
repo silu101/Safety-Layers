@@ -84,27 +84,30 @@ def main(argv: list[str] | None = None) -> tuple[Path, int]:
     cli_args = [f"--{k}={v}" for k, v in script_args.items()]
 
     if cfg.get("use_deepspeed"):
-        # CPU-offloaded optimizer state via DeepSpeed ZeRO-2, launched
-        # through `accelerate` -- HF's Trainer auto-detects DeepSpeed from
-        # the accelerate-launch environment and wires it up transparently,
-        # so this needs ZERO changes to Full_finetuning.py/SPPFT.py
-        # themselves (no `deepspeed=` argument in their hardcoded
-        # TrainingArguments call). Moves Adam's momentum/variance buffers
-        # to system RAM instead of GPU VRAM -- fixes a CUDA OOM that
-        # persisted even at micro_batch_size=1 (the OOM was in the fixed,
-        # batch-size-independent optimizer-state allocation, not
-        # activation memory). Using CLI flags, not a static accelerate
-        # config YAML, since a relative deepspeed_config_file path in a
-        # committed YAML would resolve differently locally vs. inside a
-        # container with a different REPO_ROOT.
-        ds_config = REPO_ROOT / "ds_zero2_offload.json"
+        # DeepSpeed ZeRO-2, launched through `accelerate`, sharding
+        # optimizer state across `num_processes` GPUs -- HF's Trainer
+        # auto-detects DeepSpeed from the accelerate-launch environment
+        # and wires it up transparently, so this needs ZERO changes to
+        # Full_finetuning.py/SPPFT.py themselves (no `deepspeed=` argument
+        # in their hardcoded TrainingArguments call). Fixes a CUDA OOM
+        # that persisted even at micro_batch_size=1 (fixed, batch-size-
+        # independent optimizer-state allocation, not activation memory).
+        # A CPU-offload variant (ds_zero2_offload.json) was tried first
+        # but failed to build its cpu_adam op (ninja/linker error) in this
+        # container -- sharding across GPUs avoids that build entirely,
+        # since the optimizer step still runs on GPU. Using CLI flags, not
+        # a static accelerate config YAML, since a relative
+        # deepspeed_config_file path in a committed YAML would resolve
+        # differently locally vs. inside a container with a different
+        # REPO_ROOT.
+        ds_config = REPO_ROOT / "ds_zero2_shard.json"
+        num_processes = str(cfg.get("num_processes", 1))
         cmd = [
             "accelerate", "launch",
             "--use_deepspeed",
             "--deepspeed_config_file", str(ds_config),
             "--zero_stage", "2",
-            "--offload_optimizer_device", "cpu",
-            "--num_processes", "1",
+            "--num_processes", num_processes,
             script_path.name,
         ] + cli_args
     else:

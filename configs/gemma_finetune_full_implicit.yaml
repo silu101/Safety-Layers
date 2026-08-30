@@ -8,10 +8,12 @@
 script: Code/Fine_tune/Full_finetuning.py
 run_name: gemma_full_implicit
 
-# See gemma_finetune_full_normal.yaml for the use_deepspeed explanation
-# (CPU-offloaded optimizer state via DeepSpeed ZeRO-2 + accelerate,
-# Full_finetuning.py itself unmodified).
+# See gemma_finetune_full_normal.yaml for the use_deepspeed + num_processes
+# explanation (4-GPU sharded optimizer state via DeepSpeed ZeRO-2 +
+# accelerate, needs instance_type=ml.g6e.12xlarge, Full_finetuning.py
+# itself unmodified).
 use_deepspeed: true
+num_processes: 4
 
 args:
   base_model: google/gemma-2b-it

@@ -1,7 +1,9 @@
 """
 Launch Section 4 (Full FT vs SPPFT, gemma-2b-it, Normal + Implicit) as a
-single SageMaker training job on ml.g6e.xlarge, running all 4 configs in
-sequence via sagemaker_entrypoint.py.
+single SageMaker training job, running the configs in sagemaker_entrypoint.py's
+CONFIGS list in sequence. Currently ml.g6e.12xlarge (4x L40S) for the Full
+FT configs' DeepSpeed ZeRO-2 GPU-sharded optimizer state -- see that
+file's CONFIGS list and configs/gemma_finetune_full_*.yaml.
 
 Usage:
     python sagemaker_launch.py
@@ -29,7 +31,12 @@ estimator = PyTorch(
     role=ROLE_ARN,
     framework_version="2.3",
     py_version="py311",
-    instance_type="ml.g6e.xlarge",
+    # 4x L40S (192GB total) -- Full FT needs DeepSpeed ZeRO-2 to shard
+    # optimizer state across GPUs (see ds_zero2_shard.json,
+    # configs/gemma_finetune_full_*.yaml's use_deepspeed+num_processes:4).
+    # A single-GPU ml.g6e.xlarge OOM'd inside AdamW.step() even at
+    # micro_batch_size=1, and CPU-offload failed to build its cpu_adam op.
+    instance_type="ml.g6e.12xlarge",
     instance_count=1,
     sagemaker_session=session,
     base_job_name="safety-layers-section4-gemma",

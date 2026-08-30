@@ -10,13 +10,18 @@ run_name: gemma_full_normal
 
 # CUDA OOM inside AdamW.step() (fixed, batch-size-independent optimizer-
 # state memory) persisted even at micro_batch_size=1 and with
-# PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True. use_deepspeed: true
-# (see run_config.py) offloads Adam's momentum/variance buffers to system
-# RAM via DeepSpeed ZeRO-2, launched through `accelerate` -- Full_finetuning.py
-# itself is NOT modified; HF's Trainer auto-detects DeepSpeed from the
-# accelerate-launch environment. Reverted micro_batch_size back to the
-# script's own default (4) since it's no longer needed for memory.
+# PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True. A CPU-offload
+# DeepSpeed variant was tried next but failed to build its cpu_adam op in
+# this container. use_deepspeed: true + num_processes: 4 (see
+# run_config.py) instead shards Adam's optimizer state across 4 GPUs via
+# DeepSpeed ZeRO-2 -- needs instance_type=ml.g6e.12xlarge (4x L40S) in
+# sagemaker_launch.py, not g6e.xlarge. Full_finetuning.py itself is NOT
+# modified; HF's Trainer auto-detects DeepSpeed from the accelerate-launch
+# environment, and the script's own existing world_size/ddp handling
+# already divides gradient_accumulation_steps by world_size, preserving
+# the same effective batch_size=128 across 4 processes.
 use_deepspeed: true
+num_processes: 4
 
 args:
   base_model: google/gemma-2b-it
